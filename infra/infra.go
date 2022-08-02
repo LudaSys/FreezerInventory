@@ -44,7 +44,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 
 	// Create put-chat-records function.
 	catFactFunction := awslambda.NewFunction(stack, jsii.String("GetCatFacts"), &awslambda.FunctionProps{
-		FunctionName: jsii.String(*stack.StackName() + "-PutChatRecords"),
+		FunctionName: jsii.String(*stack.StackName() + "-GetCatFacts"),
 		Runtime:      awslambda.Runtime_GO_1_X(),
 		MemorySize:   jsii.Number(128),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
@@ -83,7 +83,6 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		RetainDeployments:  jsii.Bool(false),
 		EndpointExportName: jsii.String("RestApiUrl"),
 		Deploy:             jsii.Bool(true),
-		//EndpointConfiguration: awsapigateway.EndpointType_REGIONAL,
 		EndpointConfiguration: &awsapigateway.EndpointConfiguration{
 			Types: &[]awsapigateway.EndpointType{
 				awsapigateway.EndpointType_REGIONAL,
