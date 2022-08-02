@@ -15,4 +15,7 @@
 # vendor/
 
 # IDE specifics
-.idea
+.idea/
+out/
+
+.DS_Store

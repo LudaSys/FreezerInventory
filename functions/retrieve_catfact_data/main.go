@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/aws/aws-lambda-go/events"
+	runtime "github.com/aws/aws-lambda-go/lambda"
 	"io/ioutil"
 	"net/http"
 )
@@ -30,6 +32,15 @@ func getData() (fact CatFact) {
 	return
 }
 
+func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
+	return events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       getData().FactText,
+		},
+		nil
+}
+
 func main() {
-	fmt.Println(getData().FactText)
+	runtime.Start(handleRequest)
 }

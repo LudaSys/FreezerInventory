@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
-	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslogs"
@@ -44,13 +43,13 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 	})
 
 	// Create put-chat-records function.
-	putFunction := awslambda.NewFunction(stack, jsii.String("PutFunction"), &awslambda.FunctionProps{
+	catFactFunction := awslambda.NewFunction(stack, jsii.String("GetCatFacts"), &awslambda.FunctionProps{
 		FunctionName: jsii.String(*stack.StackName() + "-PutChatRecords"),
 		Runtime:      awslambda.Runtime_GO_1_X(),
 		MemorySize:   jsii.Number(128),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
-		Code:         awslambda.AssetCode_FromAsset(jsii.String("../functions/retrieve_catfact_data/."), nil),
-		Handler:      jsii.String("main"),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Handler:      jsii.String("retrieve_catfact_data"),
 		Architecture: awslambda.Architecture_X86_64(),
 		Role:         lambdaRole,
 		LogRetention: awslogs.RetentionDays_ONE_WEEK,
@@ -84,13 +83,19 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		RetainDeployments:  jsii.Bool(false),
 		EndpointExportName: jsii.String("RestApiUrl"),
 		Deploy:             jsii.Bool(true),
+		//EndpointConfiguration: awsapigateway.EndpointType_REGIONAL,
+		EndpointConfiguration: &awsapigateway.EndpointConfiguration{
+			Types: &[]awsapigateway.EndpointType{
+				awsapigateway.EndpointType_REGIONAL,
+			},
+		},
 		DeployOptions: &awsapigateway.StageOptions{
 			StageName:           jsii.String("dev"),
 			CacheClusterEnabled: jsii.Bool(true),
 			CacheClusterSize:    jsii.String("0.5"),
 			CacheTtl:            awscdk.Duration_Minutes(jsii.Number(1)),
 			// https://www.petefreitag.com/item/853.cfm
-			// This can help you better understand what burst and rate limite are.
+			// This can help you better understand what burst and rate limit are.
 			ThrottlingBurstLimit: jsii.Number(100),
 			ThrottlingRateLimit:  jsii.Number(1000),
 		},
@@ -98,8 +103,8 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 
 	// Add path resources to rest api.
 	// You MUST associate ApiKey with the methods for the UsagePlane to work.
-	putRecordsRes := restApi.Root().AddResource(jsii.String("put-chat-records"), nil)
-	putRecordsRes.AddMethod(jsii.String("POST"), awsapigateway.NewLambdaIntegration(putFunction, nil), &awsapigateway.MethodOptions{
+	getCatFactRes := restApi.Root().AddResource(jsii.String("get-cat-fact"), nil)
+	getCatFactRes.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(catFactFunction, nil), &awsapigateway.MethodOptions{
 		ApiKeyRequired: jsii.Bool(true),
 	})
 	/*	getRecordsRes := restApi.Root().AddResource(jsii.String("get-chat-records"), nil)
@@ -125,13 +130,13 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 				Api:      restApi,
 				Stage:    restApi.DeploymentStage(),
 				Throttle: &[]*awsapigateway.ThrottlingPerMethod{
-					/*					{
-										Method: getMethod,
-										Throttle: &awsapigateway.ThrottleSettings{
-											BurstLimit: jsii.Number(1),
-											RateLimit:  jsii.Number(10),
-										},
-									},*/
+					/*										{
+															Method: getMethod,
+															Throttle: &awsapigateway.ThrottleSettings{
+																BurstLimit: jsii.Number(1),
+																RateLimit:  jsii.Number(10),
+															},
+														},*/
 				},
 			},
 		},
@@ -145,7 +150,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 	// Data Modeling
 	// name(PK), time(SK),                  comment, chat_room
 	// string    string(micro sec unixtime)	string   string
-	chatTable := awsdynamodb.NewTable(stack, jsii.String(config.DynamoDBTable), &awsdynamodb.TableProps{
+	/*	chatTable := awsdynamodb.NewTable(stack, jsii.String(config.DynamoDBTable), &awsdynamodb.TableProps{
 		TableName:     jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
 		BillingMode:   awsdynamodb.BillingMode_PROVISIONED,
 		ReadCapacity:  jsii.Number(1),
@@ -160,13 +165,13 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		PointInTimeRecovery: jsii.Bool(true),
-	})
+	})*/
 
 	// Create DynamoDB GSI table.
 	// Data Modeling
 	// chat_room(PK), time(SK),                  comment, name
 	// string         string(micro sec unixtime) string   string
-	chatTable.AddGlobalSecondaryIndex(&awsdynamodb.GlobalSecondaryIndexProps{
+	/*	chatTable.AddGlobalSecondaryIndex(&awsdynamodb.GlobalSecondaryIndexProps{
 		IndexName: jsii.String(config.DynamoDBGSI),
 		PartitionKey: &awsdynamodb.Attribute{
 			Name: jsii.String("chat_room"),
@@ -177,10 +182,10 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		ProjectionType: awsdynamodb.ProjectionType_ALL,
-	})
+	})*/
 
 	// Grant access to lambda functions.
-	chatTable.GrantWriteData(putFunction)
+	//chatTable.GrantWriteData(catFactFunction)
 	//chatTable.GrantReadData(getFunction)
 
 	return stack
@@ -189,7 +194,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 func main() {
 	app := awscdk.NewApp(nil)
 
-	NewInfraStack(app, "InfraStack", &InfraStackProps{
+	NewInfraStack(app, "FreezerStack", &InfraStackProps{
 		awscdk.StackProps{
 			Env: env(),
 		},
