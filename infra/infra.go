@@ -3,15 +3,13 @@ package main
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslogs"
+	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 	"infra/config"
-
-	// "github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
-	"github.com/aws/constructs-go/constructs/v10"
-	// "github.com/aws/jsii-runtime-go"
 )
 
 type InfraStackProps struct {
@@ -42,17 +40,32 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		},
 	})
 
-	// Create put-chat-records function.
+	// Create cat facts function.
 	catFactFunction := awslambda.NewFunction(stack, jsii.String("GetCatFacts"), &awslambda.FunctionProps{
 		FunctionName: jsii.String(*stack.StackName() + "-GetCatFacts"),
 		Runtime:      awslambda.Runtime_GO_1_X(),
 		MemorySize:   jsii.Number(128),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
 		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
-		Handler:      jsii.String("retrieve_catfact_data"),
+		Handler:      jsii.String("retrieve_catfact_data_linux"),
 		Architecture: awslambda.Architecture_X86_64(),
 		Role:         lambdaRole,
 		LogRetention: awslogs.RetentionDays_ONE_WEEK,
+		Environment: &map[string]*string{
+			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
+		},
+	})
+
+	createItemFunction := awslambda.NewFunction(stack, jsii.String("CreateItem"), &awslambda.FunctionProps{
+		FunctionName: jsii.String(*stack.StackName() + "-CreateItem"),
+		Runtime:      awslambda.Runtime_GO_1_X(),
+		MemorySize:   jsii.Number(128),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Handler:      jsii.String("create_item_entry_linux"),
+		Architecture: awslambda.Architecture_X86_64(),
+		Role:         lambdaRole,
+		LogRetention: awslogs.RetentionDays_FIVE_DAYS,
 		Environment: &map[string]*string{
 			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
 		},
@@ -100,12 +113,19 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		},
 	})
 
-	// Add path resources to rest api.
-	// You MUST associate ApiKey with the methods for the UsagePlane to work.
+	// Cat fact endpoint
 	getCatFactRes := restApi.Root().AddResource(jsii.String("get-cat-fact"), nil)
-	getCatFactRes.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(catFactFunction, nil), &awsapigateway.MethodOptions{
-		ApiKeyRequired: jsii.Bool(true),
-	})
+	getCatFactRes.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(catFactFunction, nil),
+		&awsapigateway.MethodOptions{
+			ApiKeyRequired: jsii.Bool(true),
+		})
+
+	// Create Item endpoint
+	addItemResource := restApi.Root().AddResource(jsii.String("add-item"), nil)
+	addItemResource.AddMethod(jsii.String("POST"), awsapigateway.NewLambdaIntegration(createItemFunction, nil),
+		&awsapigateway.MethodOptions{
+			ApiKeyRequired: jsii.Bool(true),
+		})
 	/*	getRecordsRes := restApi.Root().AddResource(jsii.String("get-chat-records"), nil)
 		getMethod := getRecordsRes.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(getFunction, nil), &awsapigateway.MethodOptions{
 			ApiKeyRequired: jsii.Bool(true),
@@ -149,14 +169,14 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 	// Data Modeling
 	// name(PK), time(SK),                  comment, chat_room
 	// string    string(micro sec unixtime)	string   string
-	/*	chatTable := awsdynamodb.NewTable(stack, jsii.String(config.DynamoDBTable), &awsdynamodb.TableProps{
-		TableName:     jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
+	itemTable := awsdynamodb.NewTable(stack, jsii.String(config.DynamoDBTable), &awsdynamodb.TableProps{
+		TableName:     jsii.String("FoodItems"),
 		BillingMode:   awsdynamodb.BillingMode_PROVISIONED,
 		ReadCapacity:  jsii.Number(1),
 		WriteCapacity: jsii.Number(1),
 		RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
 		PartitionKey: &awsdynamodb.Attribute{
-			Name: jsii.String("name"),
+			Name: jsii.String("itemId"),
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		SortKey: &awsdynamodb.Attribute{
@@ -164,13 +184,23 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		PointInTimeRecovery: jsii.Bool(true),
-	})*/
+	})
+
+	itemTable.AutoScaleWriteCapacity(&awsdynamodb.EnableScalingProps{
+		MinCapacity: jsii.Number(1),
+		MaxCapacity: jsii.Number(2),
+	})
+
+	itemTable.AutoScaleReadCapacity(&awsdynamodb.EnableScalingProps{
+		MinCapacity: jsii.Number(1),
+		MaxCapacity: jsii.Number(3),
+	})
 
 	// Create DynamoDB GSI table.
 	// Data Modeling
 	// chat_room(PK), time(SK),                  comment, name
 	// string         string(micro sec unixtime) string   string
-	/*	chatTable.AddGlobalSecondaryIndex(&awsdynamodb.GlobalSecondaryIndexProps{
+	/*	itemTable.AddGlobalSecondaryIndex(&awsdynamodb.GlobalSecondaryIndexProps{
 		IndexName: jsii.String(config.DynamoDBGSI),
 		PartitionKey: &awsdynamodb.Attribute{
 			Name: jsii.String("chat_room"),
@@ -184,8 +214,8 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 	})*/
 
 	// Grant access to lambda functions.
-	//chatTable.GrantWriteData(catFactFunction)
-	//chatTable.GrantReadData(getFunction)
+	itemTable.GrantWriteData(createItemFunction)
+	//itemTable.GrantReadData(getFunction)
 
 	return stack
 }

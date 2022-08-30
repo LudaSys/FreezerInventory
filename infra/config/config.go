@@ -6,8 +6,7 @@ import (
 )
 
 const (
-	DynamoDBTable = "ChatTable"
-	DynamoDBGSI   = "ChatTableGSI"
+	DynamoDBTable = "ItemTable"
 )
 
 // DO NOT modify this function, change stack name by 'cdk.json/context/stackName'.

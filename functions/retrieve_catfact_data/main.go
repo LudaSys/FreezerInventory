@@ -25,7 +25,6 @@ func getData() (fact CatFact) {
 		if unMarshalErr != nil {
 			return CatFact{}
 		}
-
 		return
 	}
 
