@@ -56,6 +56,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		},
 	})
 
+	// Create item function
 	createItemFunction := awslambda.NewFunction(stack, jsii.String("CreateItem"), &awslambda.FunctionProps{
 		FunctionName: jsii.String(*stack.StackName() + "-CreateItem"),
 		Runtime:      awslambda.Runtime_GO_1_X(),
@@ -70,24 +71,6 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
 		},
 	})
-
-	// Create get-chat-records function.
-	/*	getFunction := awslambda.NewFunction(stack, jsii.String("GetChatRecords"), &awslambda.FunctionProps{
-		FunctionName: jsii.String(*stack.StackName() + "-GetChatRecords"),
-		Runtime:      awslambda.Runtime_GO_1_X(),
-		MemorySize:   jsii.Number(128),
-		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
-		Code:         awslambda.AssetCode_FromAsset(jsii.String("functions/get-chat-records/."), nil),
-		Handler:      jsii.String("get-chat-records"),
-		Architecture: awslambda.Architecture_X86_64(),
-		Role:         lambdaRole,
-		LogRetention: awslogs.RetentionDays_ONE_WEEK,
-		Environment: &map[string]*string{
-			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
-			"DYNAMODB_GSI":   jsii.String(config.DynamoDBGSI),
-		},
-		// ReservedConcurrentExecutions: jsii.Number(1),
-	})*/
 
 	// API Gateway Configuration
 	// Create API Gateway rest api.
@@ -126,10 +109,6 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		&awsapigateway.MethodOptions{
 			ApiKeyRequired: jsii.Bool(true),
 		})
-	/*	getRecordsRes := restApi.Root().AddResource(jsii.String("get-chat-records"), nil)
-		getMethod := getRecordsRes.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(getFunction, nil), &awsapigateway.MethodOptions{
-			ApiKeyRequired: jsii.Bool(true),
-		})*/
 
 	// UsagePlane's throttle can override Stage's DefaultMethodThrottle,
 	// while UsagePlanePerApiStage's throttle can override UsagePlane's throttle.
@@ -180,7 +159,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		SortKey: &awsdynamodb.Attribute{
-			Name: jsii.String("time"),
+			Name: jsii.String("storage_location"),
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		PointInTimeRecovery: jsii.Bool(true),

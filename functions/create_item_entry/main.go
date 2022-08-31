@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"functions/shared/models"
 	"github.com/aws/aws-lambda-go/events"
 	runtime "github.com/aws/aws-lambda-go/lambda"
@@ -21,18 +22,16 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 	if err != nil {
 		panic(err)
 	}
-	foodItem := models.FoodItem{
-		ItemId: uuid.New().String(),
-		Name:   "Banana",
-	}
+	var requestModel models.FoodItem
+	json.Unmarshal([]byte(request.Body), &requestModel)
 
 	svc := dynamodb.NewFromConfig(cfg)
 	_, err = svc.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: aws.String("FoodItems"),
 		Item: map[string]types.AttributeValue{
-			"itemId": &types.AttributeValueMemberS{Value: foodItem.ItemId},
-			"name":   &types.AttributeValueMemberS{Value: foodItem.Name},
-			"time":   &types.AttributeValueMemberS{Value: "12345"},
+			"itemId":           &types.AttributeValueMemberS{Value: uuid.New().String()},
+			"name":             &types.AttributeValueMemberS{Value: requestModel.Name},
+			"storage_location": &types.AttributeValueMemberS{Value: requestModel.StorageLocation},
 		},
 	})
 

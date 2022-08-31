@@ -1,7 +1,7 @@
 package models
 
 type FoodItem struct {
-	ItemId string `json:"ItemId"`
-	Name   string `json:"name"`
-	Time   string `json:"time"`
+	ItemId          string `json:"itemId"`
+	Name            string `json:"name"`
+	StorageLocation string `json:"storage_location"`
 }
