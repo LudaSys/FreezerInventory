@@ -23,7 +23,11 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		panic(err)
 	}
 	var requestModel models.FoodItem
-	json.Unmarshal([]byte(request.Body), &requestModel)
+	jsonErr := json.Unmarshal([]byte(request.Body), &requestModel)
+
+	if jsonErr != nil {
+		panic(jsonErr)
+	}
 
 	svc := dynamodb.NewFromConfig(cfg)
 	_, err = svc.PutItem(context.TODO(), &dynamodb.PutItemInput{
