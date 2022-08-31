@@ -51,6 +51,9 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		Architecture: awslambda.Architecture_X86_64(),
 		Role:         lambdaRole,
 		LogRetention: awslogs.RetentionDays_ONE_WEEK,
+		CurrentVersionOptions: &awslambda.VersionOptions{
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+		},
 		Environment: &map[string]*string{
 			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
 		},
@@ -67,6 +70,9 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		Architecture: awslambda.Architecture_X86_64(),
 		Role:         lambdaRole,
 		LogRetention: awslogs.RetentionDays_FIVE_DAYS,
+		CurrentVersionOptions: &awslambda.VersionOptions{
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+		},
 		Environment: &map[string]*string{
 			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
 		},
