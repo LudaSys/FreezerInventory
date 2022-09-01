@@ -92,8 +92,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		},
 		DeployOptions: &awsapigateway.StageOptions{
 			StageName:           jsii.String("dev"),
-			CacheClusterEnabled: jsii.Bool(true),
-			CacheClusterSize:    jsii.String("0.5"),
+			CacheClusterEnabled: jsii.Bool(false),
 			CacheTtl:            awscdk.Duration_Minutes(jsii.Number(1)),
 			// https://www.petefreitag.com/item/853.cfm
 			// This can help you better understand what burst and rate limit are.
