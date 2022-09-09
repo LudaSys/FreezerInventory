@@ -78,6 +78,25 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 		},
 	})
 
+	// Scan items function
+	scanItemsFunction := awslambda.NewFunction(stack, jsii.String("ScanItems"), &awslambda.FunctionProps{
+		FunctionName: jsii.String(*stack.StackName() + "-ScanItems"),
+		Runtime:      awslambda.Runtime_GO_1_X(),
+		MemorySize:   jsii.Number(128),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Handler:      jsii.String("scan_items_linux"),
+		Architecture: awslambda.Architecture_X86_64(),
+		Role:         lambdaRole,
+		LogRetention: awslogs.RetentionDays_FIVE_DAYS,
+		CurrentVersionOptions: &awslambda.VersionOptions{
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+		},
+		Environment: &map[string]*string{
+			"DYNAMODB_TABLE": jsii.String(*stack.StackName() + "-" + config.DynamoDBTable),
+		},
+	})
+
 	// API Gateway Configuration
 	// Create API Gateway rest api.
 	restApi := awsapigateway.NewRestApi(stack, jsii.String("LambdaRestApi"), &awsapigateway.RestApiProps{
@@ -111,6 +130,13 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 	// Create Item endpoint
 	addItemResource := restApi.Root().AddResource(jsii.String("add-item"), nil)
 	addItemResource.AddMethod(jsii.String("POST"), awsapigateway.NewLambdaIntegration(createItemFunction, nil),
+		&awsapigateway.MethodOptions{
+			ApiKeyRequired: jsii.Bool(true),
+		})
+
+	// Scan items endpoint
+	scanItemsResource := restApi.Root().AddResource(jsii.String("scan-items"), nil)
+	scanItemsResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(scanItemsFunction, nil),
 		&awsapigateway.MethodOptions{
 			ApiKeyRequired: jsii.Bool(true),
 		})
@@ -164,7 +190,7 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		SortKey: &awsdynamodb.Attribute{
-			Name: jsii.String("storage_location"),
+			Name: jsii.String("storageLocation"),
 			Type: awsdynamodb.AttributeType_STRING,
 		},
 		PointInTimeRecovery: jsii.Bool(true),

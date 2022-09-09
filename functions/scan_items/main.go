@@ -3,18 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"functions/shared/models"
 	"github.com/aws/aws-lambda-go/events"
 	runtime "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	_ "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
 )
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
 		o.Region = "us-east-1"
 		return nil
@@ -22,31 +22,35 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 	if err != nil {
 		panic(err)
 	}
-	var requestModel models.FoodItem
-	jsonErr := json.Unmarshal([]byte(request.Body), &requestModel)
-
-	if jsonErr != nil {
-		panic(jsonErr)
-	}
 
 	svc := dynamodb.NewFromConfig(cfg)
-	_, err = svc.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String("FoodItems"),
-		Item: map[string]types.AttributeValue{
-			"itemId":          &types.AttributeValueMemberS{Value: uuid.New().String()},
-			"name":            &types.AttributeValueMemberS{Value: requestModel.Name},
-			"storageLocation": &types.AttributeValueMemberS{Value: requestModel.StorageLocation},
-		},
-	})
 
+	out, err := svc.Scan(context.TODO(), &dynamodb.ScanInput{
+		TableName: aws.String("FoodItems"),
+	})
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Println(out.Items)
+	var results []models.FoodItem
+	unmarhsalErr := attributevalue.UnmarshalListOfMaps(out.Items, &results)
+
+	if unmarhsalErr != nil {
+		return events.APIGatewayProxyResponse{
+				StatusCode: 500,
+				Body:       "Error unmarshalling data",
+			},
+			nil
+	}
+
+	response, error := json.Marshal(results)
+
 	return events.APIGatewayProxyResponse{
-			StatusCode: 201,
+			StatusCode: 200,
+			Body:       string(response),
 		},
-		err
+		error
 }
 
 func main() {
