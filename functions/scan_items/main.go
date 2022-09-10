@@ -44,13 +44,13 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 			nil
 	}
 
-	response, error := json.Marshal(results)
+	response, marshalErr := json.Marshal(results)
 
 	return events.APIGatewayProxyResponse{
 			StatusCode: 200,
 			Body:       string(response),
 		},
-		error
+		marshalErr
 }
 
 func main() {
