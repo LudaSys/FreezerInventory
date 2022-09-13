@@ -198,12 +198,12 @@ func NewInfraStack(scope constructs.Construct, id string, props *InfraStackProps
 
 	itemTable.AutoScaleWriteCapacity(&awsdynamodb.EnableScalingProps{
 		MinCapacity: jsii.Number(1),
-		MaxCapacity: jsii.Number(2),
+		MaxCapacity: jsii.Number(5),
 	})
 
 	itemTable.AutoScaleReadCapacity(&awsdynamodb.EnableScalingProps{
 		MinCapacity: jsii.Number(1),
-		MaxCapacity: jsii.Number(3),
+		MaxCapacity: jsii.Number(5),
 	})
 
 	// Create DynamoDB GSI table.
